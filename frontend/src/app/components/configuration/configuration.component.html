@@ -1,0 +1,157 @@
+<div class="configuration-container">
+  <h2>FreeWork Job Application Configuration</h2>
+  
+  <!-- Authentication Status -->
+  <div class="auth-status" *ngIf="isAuthenticated">
+    <p class="success">🔐 Authenticated as: {{configForm.get('email')?.value}}</p>
+  </div>
+  
+  <form [formGroup]="configForm" (ngSubmit)="saveConfig()">
+    
+    <!-- Credentials Section -->
+    <div class="section">
+      <h3>🔐 Login Credentials</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="email">Email:</label>
+          <input type="email" id="email" formControlName="email" placeholder="your.email@example.com">
+          <div class="error" *ngIf="configForm.get('email')?.invalid && configForm.get('email')?.touched">
+            Please enter a valid email address
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="password">Password:</label>
+          <input type="password" id="password" formControlName="password" placeholder="Your password">
+          <div class="error" *ngIf="configForm.get('password')?.invalid && configForm.get('password')?.touched">
+            Password is required
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search Terms Section -->
+    <div class="section">
+      <h3>🔍 Search Terms</h3>
+      <div formArrayName="search_terms">
+        <div *ngFor="let term of getSearchTermsArray().controls; let i = index" class="form-row">
+          <div class="form-group">
+            <label [for]="'search-term-' + i">Search Term {{i + 1}}:</label>
+            <input [id]="'search-term-' + i" [formControlName]="i" placeholder="e.g., java, angular, python">
+          </div>
+          <button type="button" class="btn-remove" (click)="removeSearchTerm(i)" *ngIf="getSearchTermsArray().controls.length > 1">
+            ❌ Remove
+          </button>
+        </div>
+      </div>
+      <button type="button" class="btn-add" (click)="addSearchTerm()">
+        ➕ Add Search Term
+      </button>
+    </div>
+
+    <!-- Contract Types Section -->
+    <div class="section">
+      <h3>📋 Contract Types</h3>
+      <div class="checkbox-group">
+        <div *ngFor="let option of contractOptions" class="checkbox-item">
+          <input type="checkbox" [id]="'contract-' + option.value" 
+                 [value]="option.value" 
+                 (change)="onContractTypeChange($event, option.value)">
+          <label [for]="'contract-' + option.value">{{option.label}}</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Remote Work Section -->
+    <div class="section">
+      <h3>🏠 Remote Work Options</h3>
+      <div class="checkbox-group">
+        <div *ngFor="let option of remoteOptions" class="checkbox-item">
+          <input type="checkbox" [id]="'remote-' + option.value" 
+                 [value]="option.value" 
+                 (change)="onRemoteTypeChange($event, option.value)">
+          <label [for]="'remote-' + option.value">{{option.label}}</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Publication Timeframe Section -->
+    <div class="section">
+      <h3>📅 Publication Timeframe</h3>
+      <div class="form-group">
+        <label for="timeframe">Select timeframe:</label>
+        <select id="timeframe" formControlName="publication_timeframes" (change)="onPublicationTimeframeChange($event)">
+          <option value="">Choose a timeframe...</option>
+          <option *ngFor="let option of publicationOptions" [value]="option.value">
+            {{option.label}}
+          </option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Excluded Keywords Section -->
+    <div class="section">
+      <h3>🚫 Excluded Keywords</h3>
+      <div formArrayName="excluded_keywords">
+        <div *ngFor="let keyword of getExcludedKeywordsArray().controls; let i = index" class="form-row">
+          <div class="form-group">
+            <label [for]="'keyword-' + i">Excluded Keyword {{i + 1}}:</label>
+            <input [id]="'keyword-' + i" [formControlName]="i" placeholder="e.g., senior, lead, manager">
+          </div>
+          <button type="button" class="btn-remove" (click)="removeExcludedKeyword(i)" *ngIf="getExcludedKeywordsArray().controls.length > 1">
+            ❌ Remove
+          </button>
+        </div>
+      </div>
+      <button type="button" class="btn-add" (click)="addExcludedKeyword()">
+        ➕ Add Excluded Keyword
+      </button>
+    </div>
+
+    <!-- Application Settings Section -->
+    <div class="section">
+      <h3>⚙️ Application Settings</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="max-apps">Max Applications per Session:</label>
+          <input type="number" id="max-apps" formControlName="max_applications_per_session" min="1" max="1000">
+        </div>
+        <div class="form-group">
+          <label for="delay">Delay Between Applications (seconds):</label>
+          <input type="number" id="delay" formControlName="delay_between_applications" min="1" max="60">
+        </div>
+      </div>
+    </div>
+
+    <!-- Application Message Section -->
+    <div class="section">
+      <h3>💬 Application Message</h3>
+      <div class="form-group">
+        <label for="message">Your application message:</label>
+        <textarea id="message" formControlName="application_message" rows="6" 
+                  placeholder="Enter your application message here..."></textarea>
+        <div class="error" *ngIf="configForm.get('application_message')?.invalid && configForm.get('application_message')?.touched">
+          Application message is required
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="actions">
+      <button type="submit" class="btn-primary" [disabled]="configForm.invalid">
+        {{isAuthenticated ? '💾 Save Configuration' : '🔐 Login & Save Configuration'}}
+      </button>
+      <button type="button" class="btn-success" (click)="startSession()" [disabled]="configForm.invalid || !isAuthenticated">
+        🚀 Launch Application Session
+      </button>
+      <button type="button" class="btn-info" (click)="viewStatistics()" [disabled]="!isAuthenticated">
+        📊 View Statistics
+      </button>
+    </div>
+
+    <!-- Status Messages -->
+    <div class="status" *ngIf="saveStatus">
+      <p [class]="saveStatus.includes('saved') || saveStatus.includes('successfully') ? 'success' : 'error'">{{saveStatus}}</p>
+    </div>
+
+  </form>
+</div> 
