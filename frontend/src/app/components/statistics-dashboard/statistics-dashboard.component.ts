@@ -1,6 +1,15 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ApiService, GlobalStatistics } from '../../services/api.service';
+import { ApiService, GlobalStatistics as ApiGlobalStatistics } from '../../services/api.service';
+
+// Extend the interface here for template type safety
+interface GlobalStatistics extends ApiGlobalStatistics {
+  total_jobs_seen?: number;
+  total_attempted_applications?: number;
+  skipped_excluded_keyword?: number;
+  skipped_already_applied?: number;
+  failed_other?: number;
+}
 
 @Component({
   selector: 'app-statistics-dashboard',

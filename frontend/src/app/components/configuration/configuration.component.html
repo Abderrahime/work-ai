@@ -144,13 +144,63 @@
         🚀 Launch Application Session
       </button>
       <button type="button" class="btn-info" (click)="viewStatistics()" [disabled]="!isAuthenticated">
-        📊 View Statistics
+        📊 {{showStatistics ? 'Hide' : 'View'}} Quick Statistics
       </button>
+      <button type="button" class="btn-secondary" (click)="scrollToStatistics()" [disabled]="!isAuthenticated">
+        📈 Go to Full Dashboard
+      </button>
+    </div>
+
+    <!-- Quick Statistics Display -->
+    <div class="quick-stats" *ngIf="showStatistics && currentStats">
+      <h3>📊 Quick Statistics</h3>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-number">{{ currentStats.total_jobs_seen || 0 }}</div>
+          <div class="stat-label">Total Jobs Seen</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">{{ currentStats.total_attempted_applications || 0 }}</div>
+          <div class="stat-label">Applications Attempted</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">{{ currentStats.total_applications }}</div>
+          <div class="stat-label">Total Applications</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number success">{{ currentStats.successful_applications }}</div>
+          <div class="stat-label">Successful</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number failed">{{ currentStats.failed_applications }}</div>
+          <div class="stat-label">Failed</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">{{ currentStats.skipped_excluded_keyword || 0 }}</div>
+          <div class="stat-label">Skipped (Excluded Keyword)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">{{ currentStats.skipped_already_applied || 0 }}</div>
+          <div class="stat-label">Skipped (Already Applied)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">{{ currentStats.failed_other || 0 }}</div>
+          <div class="stat-label">Failed (Other)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">{{ currentStats.success_rate.toFixed(1) }}%</div>
+          <div class="stat-label">Success Rate</div>
+        </div>
+      </div>
+      <div class="stats-details" *ngIf="currentStats.last_session">
+        <p><strong>Last Session:</strong> {{ currentStats.last_session }}</p>
+        <p><strong>Total Sessions:</strong> {{ currentStats.sessions.length }}</p>
+      </div>
     </div>
 
     <!-- Status Messages -->
     <div class="status" *ngIf="saveStatus">
-      <p [class]="saveStatus.includes('saved') || saveStatus.includes('successfully') ? 'success' : 'error'">{{saveStatus}}</p>
+      <p [class]="saveStatus.includes('saved') || saveStatus.includes('successfully') || saveStatus.includes('loaded') ? 'success' : 'error'">{{saveStatus}}</p>
     </div>
 
   </form>

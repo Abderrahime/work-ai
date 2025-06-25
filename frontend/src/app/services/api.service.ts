@@ -25,7 +25,12 @@ export interface Statistics {
   failed_applications: number;
   success_rate: number;
   last_session?: string;
-  sessions: string[];
+  sessions: any[];
+  skipped_excluded_keyword?: number;
+  skipped_already_applied?: number;
+  failed_other?: number;
+  total_jobs_seen?: number;
+  total_attempted_applications?: number;
 }
 
 export interface SessionStatus {
@@ -54,6 +59,11 @@ export interface SessionStatistics {
   successful: number;
   failed: number;
   success_rate: number;
+  skipped_excluded_keyword?: number;
+  skipped_already_applied?: number;
+  failed_other?: number;
+  total_jobs_seen?: number;
+  total_attempted_applications?: number;
 }
 
 export interface GlobalStatistics {

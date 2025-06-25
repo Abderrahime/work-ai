@@ -1,3 +1,21 @@
+<!-- Navigation Header -->
+<nav class="app-nav">
+  <div class="nav-container">
+    <h1 class="nav-title">🚀 FreeWork Job Assistant</h1>
+    <div class="nav-links">
+      <a href="#configuration" class="nav-link" (click)="scrollToSection('configuration')">⚙️ Configuration</a>
+      <a href="#statistics" class="nav-link" (click)="scrollToSection('statistics')">📊 Statistics</a>
+    </div>
+  </div>
+</nav>
 
-<app-configuration></app-configuration>
-<app-statistics-dashboard></app-statistics-dashboard>
+<!-- Main Content -->
+<div class="app-content">
+  <section id="configuration">
+    <app-configuration></app-configuration>
+  </section>
+  
+  <section id="statistics">
+    <app-statistics-dashboard></app-statistics-dashboard>
+  </section>
+</div>

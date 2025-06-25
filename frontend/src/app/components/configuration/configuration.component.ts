@@ -14,6 +14,8 @@ export class ConfigurationComponent implements OnInit {
   configForm: FormGroup;
   saveStatus = '';
   isAuthenticated = false;
+  showStatistics = false;
+  currentStats: Statistics | null = null;
 
   contractOptions = [
     { value: 'permanent', label: 'CDI' },
@@ -28,6 +30,7 @@ export class ConfigurationComponent implements OnInit {
     { value: 'full', label: 'Télétravail 100%' },
     { value: 'none', label: 'Présentiel' }
   ];
+
   publicationOptions = [
     { value: 'less_than_24_hours', label: 'Moins de 24h' },
     { value: 'less_than_7_days', label: 'Moins de 7 jours' },
@@ -209,6 +212,8 @@ export class ConfigurationComponent implements OnInit {
       next: () => {
         this.saveStatus = '✅ Application session started successfully!';
         setTimeout(() => this.saveStatus = '', 3000);
+        // Refresh statistics after session
+        this.viewStatistics();
       },
       error: (error: any) => {
         this.saveStatus = '❌ Failed to start session: ' + error.message;
@@ -224,15 +229,27 @@ export class ConfigurationComponent implements OnInit {
       return;
     }
 
-    this.api.getStatistics().subscribe({
-      next: (stats: Statistics) => {
-        this.saveStatus = `📊 Statistics: ${stats.total_applications} total applications, ${stats.successful_applications} successful`;
-        setTimeout(() => this.saveStatus = '', 5000);
-      },
-      error: (error: any) => {
-        this.saveStatus = '❌ Failed to load statistics: ' + error.message;
-        setTimeout(() => this.saveStatus = '', 5000);
-      }
-    });
+    this.showStatistics = !this.showStatistics;
+    
+    if (this.showStatistics) {
+      this.api.getStatistics().subscribe({
+        next: (stats: Statistics) => {
+          this.currentStats = stats;
+          this.saveStatus = `📊 Statistics loaded: ${stats.total_applications} total applications, ${stats.successful_applications} successful (${stats.success_rate.toFixed(1)}% success rate)`;
+          setTimeout(() => this.saveStatus = '', 5000);
+        },
+        error: (error: any) => {
+          this.saveStatus = '❌ Failed to load statistics: ' + error.message;
+          setTimeout(() => this.saveStatus = '', 5000);
+        }
+      });
+    }
+  }
+
+  scrollToStatistics() {
+    const statsElement = document.querySelector('app-statistics-dashboard');
+    if (statsElement) {
+      statsElement.scrollIntoView({ behavior: 'smooth' });
+    }
   }
 } 

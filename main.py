@@ -239,34 +239,38 @@ def submit_application(driver, message, logger):
         return False
 
 
-def check_job_content(driver, excluded_keywords, logger, search_term, search_config):
+def check_job_content(driver, excluded_keywords, logger, search_term, search_config, stats_counters=None):
     """Check job content and apply if suitable"""
     main = driver.current_window_handle
     windows = driver.window_handles
+    applications_data = []
     
     try:
         for window in windows[1:]:  # Skip main window
             driver.switch_to.window(window)
-            
             try:
+                # Track attempted
+                if stats_counters is not None:
+                    stats_counters['total_jobs_seen'] += 1
                 # Check if already applied
                 if check_if_already_applied(driver):
                     logger.info("Already applied to this job - skipping")
+                    if stats_counters is not None:
+                        stats_counters['skipped_already_applied'] += 1
                     driver.close()
                     continue
-                
                 # Get job content
                 content = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.CLASS_NAME, "prose-content"))
                 )
-                
                 # Check for excluded keywords
                 content_text = content.text.lower()
                 if any(keyword in content_text for keyword in excluded_keywords):
                     logger.info(f"Job contains excluded keyword - skipping")
+                    if stats_counters is not None:
+                        stats_counters['skipped_excluded_keyword'] += 1
                     driver.close()
                     continue
-                
                 # Get job title and company for logging
                 try:
                     job_title = driver.find_element(By.XPATH, "//h1").text
@@ -274,15 +278,12 @@ def check_job_content(driver, excluded_keywords, logger, search_term, search_con
                 except:
                     job_title = "Unknown"
                     company = "Unknown"
-                
                 # Submit application
                 success = submit_application(driver, search_config['application_message'], logger)
-                
                 # Log application attempt
                 logger.application_log(job_title, company, "success" if success else "failed", search_term)
-                
-                # Return application data for statistics
-                return {
+                # Add application data for statistics
+                applications_data.append({
                     'job_title': job_title,
                     'company': company,
                     'status': "success" if success else "failed",
@@ -290,43 +291,52 @@ def check_job_content(driver, excluded_keywords, logger, search_term, search_con
                     'search_term': search_term,
                     'contract_type': search_config.get('contract_types', []),
                     'remote_type': search_config.get('remote_types', [])
-                }
-                
+                })
+                if stats_counters is not None:
+                    stats_counters['total_attempted_applications'] += 1
+                    if success:
+                        stats_counters['successful_applications'] += 1
+                    else:
+                        stats_counters['failed_other'] += 1
                 driver.close()
             except Exception as e:
                 logger.error(f"Error processing job: {e}")
+                if stats_counters is not None:
+                    stats_counters['failed_other'] += 1
                 driver.close()
-                
         driver.switch_to.window(main)
-        return None
+        return applications_data
     except Exception as e:
         logger.error(f"Error checking job content: {e}")
-        return None
+        return applications_data
 
 
-def open_search_results_with_pagination(driver, max_applications, excluded_keywords, logger, search_term, search_config):
+def open_search_results_with_pagination(driver, max_applications, excluded_keywords, logger, search_term, search_config, stats_counters=None):
     """Open search results with pagination and apply to jobs"""
     applications_count = 0
     applications_data = []
-    
     try:
         while True and applications_count < max_applications:
             links = driver.find_elements(By.XPATH, "//h2[contains(@class, 'font-semibold')]//a[contains(@href, '/fr/tech-it/')]")
-            
-            for link in links[:16]:  # Process up to 16 jobs per page
+            # Calculate how many links to process on this page
+            remaining_applications = max_applications - applications_count
+            links_to_process = min(len(links), remaining_applications, 16)  # Max 16 per page
+            for i, link in enumerate(links[:links_to_process]):
                 if applications_count >= max_applications:
                     break
-                    
                 url = link.get_attribute("href")
                 driver.execute_script(f"window.open('{url}', '_blank');")
                 time.sleep(1)
-            
             # Process applications and collect data
-            application_data = check_job_content(driver, excluded_keywords, logger, search_term, search_config)
-            if application_data:
-                applications_data.append(application_data)
-                applications_count += 1
-            
+            page_applications = check_job_content(driver, excluded_keywords, logger, search_term, search_config, stats_counters)
+            if page_applications:
+                applications_data.extend(page_applications)
+                applications_count += len(page_applications)
+            # Check if we've reached the limit
+            if applications_count >= max_applications:
+                logger.info(f"Reached maximum applications limit ({max_applications})")
+                break
+            # Try to go to next page
             try:
                 next_button = WebDriverWait(driver, 5).until(
                     EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Suivant')]")))
@@ -335,35 +345,29 @@ def open_search_results_with_pagination(driver, max_applications, excluded_keywo
             except TimeoutException:
                 logger.info("No more pages to process")
                 break
-                
         return applications_data
     except Exception as e:
         logger.error(f"Pagination failed: {e}")
         return applications_data
 
 
-def run_search_session(driver, search_term, search_config, logger, config_manager):
+def run_search_session(driver, search_term, search_config, logger, config_manager, stats_counters=None):
     """Run a complete search session for one search term"""
     logger.info(f"Starting search session for: {search_term}")
-    
     # Perform search
     if not perform_search(driver, search_term, logger):
         return False, []
-    
     # Apply filters
     if not filter_contract_types(driver, search_config['contract_types'], logger):
         return False, []
-    
     if not filter_remote_work(driver, search_config['remote_types'], logger):
         return False, []
-    
     # Ensure publication_timeframes is always a list
     ptf = search_config['publication_timeframes']
     if isinstance(ptf, str):
         ptf = [ptf]
     if not filter_publication_date(driver, ptf[0], logger):
         return False, []
-    
     # Process results and collect statistics
     session_applications = open_search_results_with_pagination(
         driver, 
@@ -371,9 +375,9 @@ def run_search_session(driver, search_term, search_config, logger, config_manage
         search_config['excluded_keywords'],
         logger,
         search_term,
-        search_config
+        search_config,
+        stats_counters
     )
-    
     return True, session_applications
 
 
@@ -383,20 +387,16 @@ def main(email=None, password=None, search_config=None, config_manager=None, log
     if config_manager is None:
         from config import SecureConfig
         config_manager = SecureConfig()
-    
     if logger is None:
         from logger import SecureLogger
         logger = SecureLogger(email)
-    
     if email is None or password is None:
         email, password = config_manager.load_credentials()
         if not email or not password:
             logger.error("No credentials found. Please run the interface first.")
             return
-    
     if search_config is None:
         search_config = config_manager.load_search_config()
-    
     # Initialize statistics
     all_applications = []
     session_stats = {
@@ -404,51 +404,58 @@ def main(email=None, password=None, search_config=None, config_manager=None, log
         'successful_applications': 0,
         'failed_applications': 0,
         'sessions': [],
-        'last_session': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        'last_session': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'skipped_excluded_keyword': 0,
+        'skipped_already_applied': 0,
+        'failed_other': 0,
+        'total_jobs_seen': 0,
+        'total_attempted_applications': 0
     }
-    
+    stats_counters = {
+        'skipped_excluded_keyword': 0,
+        'skipped_already_applied': 0,
+        'failed_other': 0,
+        'total_jobs_seen': 0,
+        'total_attempted_applications': 0,
+        'successful_applications': 0
+    }
     # Log session start
     logger.session_start(search_config)
-    
     try:
         driver = initialize_browser()
-        
         # Login
         if not check_and_click_login(driver, logger):
             logger.error("Could not find or click the login button. Stopping application.")
             driver.quit()
             return
-        
         if not perform_login(driver, email, password, logger):
             logger.error("Login failed. Please check your credentials. Stopping application.")
             driver.quit()
             return
-        
         # Process each search term
         for search_term in search_config['search_terms']:
             logger.info(f"Processing search term: {search_term}")
-            
             # Navigate back to main page for each search
             driver.get("https://www.free-work.com/fr/tech-it")
             time.sleep(2)
-            
             # Run search session
-            success, session_applications = run_search_session(driver, search_term, search_config, logger, config_manager)
-            
+            success, session_applications = run_search_session(driver, search_term, search_config, logger, config_manager, stats_counters)
             if success:
                 all_applications.extend(session_applications)
                 logger.success(f"Completed search session for: {search_term}")
             else:
                 logger.error(f"Failed search session for: {search_term}")
-            
             # Add random delay between search terms
             time.sleep(random.uniform(3, 7))
-        
         # Calculate final statistics
         session_stats['total_applications'] = len(all_applications)
-        session_stats['successful_applications'] = len([app for app in all_applications if app['status'] == 'success'])
-        session_stats['failed_applications'] = len([app for app in all_applications if app['status'] == 'failed'])
-        
+        session_stats['successful_applications'] = stats_counters['successful_applications']
+        session_stats['failed_applications'] = session_stats['total_applications'] - stats_counters['successful_applications']
+        session_stats['skipped_excluded_keyword'] = stats_counters['skipped_excluded_keyword']
+        session_stats['skipped_already_applied'] = stats_counters['skipped_already_applied']
+        session_stats['failed_other'] = stats_counters['failed_other']
+        session_stats['total_jobs_seen'] = stats_counters['total_jobs_seen']
+        session_stats['total_attempted_applications'] = stats_counters['total_attempted_applications']
         # Create session record
         session_record = {
             'session_id': f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
@@ -457,19 +464,29 @@ def main(email=None, password=None, search_config=None, config_manager=None, log
             'total': session_stats['total_applications'],
             'successful': session_stats['successful_applications'],
             'failed': session_stats['failed_applications'],
-            'success_rate': (session_stats['successful_applications'] / session_stats['total_applications'] * 100) if session_stats['total_applications'] > 0 else 0.0
+            'success_rate': (session_stats['successful_applications'] / session_stats['total_applications'] * 100) if session_stats['total_applications'] > 0 else 0.0,
+            'skipped_excluded_keyword': session_stats['skipped_excluded_keyword'],
+            'skipped_already_applied': session_stats['skipped_already_applied'],
+            'failed_other': session_stats['failed_other'],
+            'total_jobs_seen': session_stats['total_jobs_seen'],
+            'total_attempted_applications': session_stats['total_attempted_applications']
         }
-        
         session_stats['sessions'] = [session_record]
-        
         # Save statistics
         config_manager.save_statistics(email, session_stats)
-        
         # Log session end
         logger.session_end(session_stats)
-        
+        # Print detailed stats in console
+        print("\n===== SESSION SUMMARY =====")
+        print(f"Total jobs seen: {session_stats['total_jobs_seen']}")
+        print(f"Applications attempted: {session_stats['total_attempted_applications']}")
+        print(f"Successful applications: {session_stats['successful_applications']}")
+        print(f"Failed applications: {session_stats['failed_applications']}")
+        print(f"Skipped (excluded keyword): {session_stats['skipped_excluded_keyword']}")
+        print(f"Skipped (already applied): {session_stats['skipped_already_applied']}")
+        print(f"Failed (other): {session_stats['failed_other']}")
+        print("===========================\n")
         logger.success("All search sessions completed successfully!")
-        
     except Exception as e:
         logger.error(f"Main execution failed: {e}")
     finally:

@@ -6,6 +6,14 @@
     <!-- Summary Cards -->
     <div class="stats-summary">
       <div class="stat-card">
+        <div class="stat-label">Total Jobs Seen</div>
+        <div class="stat-value">{{ stats.total_jobs_seen || 0 }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Applications Attempted</div>
+        <div class="stat-value">{{ stats.total_attempted_applications || 0 }}</div>
+      </div>
+      <div class="stat-card">
         <div class="stat-label">Total Applications</div>
         <div class="stat-value">{{ stats.total_applications }}</div>
       </div>
@@ -16,6 +24,18 @@
       <div class="stat-card">
         <div class="stat-label">Failed</div>
         <div class="stat-value failed">{{ stats.failed_applications }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Skipped (Excluded Keyword)</div>
+        <div class="stat-value">{{ stats.skipped_excluded_keyword || 0 }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Skipped (Already Applied)</div>
+        <div class="stat-value">{{ stats.skipped_already_applied || 0 }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Failed (Other)</div>
+        <div class="stat-value">{{ stats.failed_other || 0 }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Success Rate</div>
