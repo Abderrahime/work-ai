@@ -56,55 +56,50 @@ export class StatisticsDashboardComponent implements OnInit {
   }
 
   getSearchTermBreakdown() {
-    if (!this.stats?.per_search_term) return [];
-    
-    const total = this.stats.total_applications;
-    return Object.entries(this.stats.per_search_term)
-      .map(([term, count]) => ({
-        term,
-        count,
-        percentage: total > 0 ? (count / total) * 100 : 0
+    if (!this.stats?.per_search_term || !Array.isArray(this.stats.per_search_term)) return [];
+    const total = Number(this.stats.total_applications);
+    return this.stats.per_search_term
+      .map((term: any) => ({
+        term: term.search_term,
+        count: Number(term.jobs_submitted),
+        percentage: total > 0 ? (Number(term.jobs_submitted) / total) * 100 : 0
       }))
-      .sort((a, b) => b.count - a.count);
+      .sort((a, b) => Number(b.count) - Number(a.count));
   }
 
   getContractTypeBreakdown() {
     if (!this.stats?.per_contract_type) return [];
-    
-    const total = this.stats.total_applications;
+    const total = Number(this.stats.total_applications);
     return Object.entries(this.stats.per_contract_type)
       .map(([type, count]) => ({
         type,
-        count,
-        percentage: total > 0 ? (count / total) * 100 : 0
+        count: Number(count),
+        percentage: total > 0 ? (Number(count) / total) * 100 : 0
       }))
-      .sort((a, b) => b.count - a.count);
+      .sort((a, b) => Number(b.count) - Number(a.count));
   }
 
   getRemoteTypeBreakdown() {
     if (!this.stats?.per_remote_type) return [];
-    
-    const total = this.stats.total_applications;
+    const total = Number(this.stats.total_applications);
     return Object.entries(this.stats.per_remote_type)
       .map(([type, count]) => ({
         type,
-        count,
-        percentage: total > 0 ? (count / total) * 100 : 0
+        count: Number(count),
+        percentage: total > 0 ? (Number(count) / total) * 100 : 0
       }))
-      .sort((a, b) => b.count - a.count);
+      .sort((a, b) => Number(b.count) - Number(a.count));
   }
 
   getDailyBreakdown() {
     if (!this.stats?.per_day) return [];
-    
-    const maxCount = Math.max(...Object.values(this.stats.per_day));
+    const maxCount = Math.max(...Object.values(this.stats.per_day).map(Number));
     const maxHeight = 100; // Maximum height in pixels
-    
     return Object.entries(this.stats.per_day)
       .map(([date, count]) => ({
         date: new Date(date),
-        count,
-        height: maxCount > 0 ? (count / maxCount) * maxHeight : 0
+        count: Number(count),
+        height: maxCount > 0 ? (Number(count) / maxCount) * maxHeight : 0
       }))
       .sort((a, b) => a.date.getTime() - b.date.getTime());
   }

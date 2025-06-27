@@ -56,28 +56,14 @@ class JobApplication(BaseModel):
     timestamp: datetime
     search_term: str
 
-class Statistics(BaseModel):
-    total_applications: int
-    successful_applications: int
-    failed_applications: int
-    success_rate: float
-    last_session: Optional[str]
-    sessions: List[str]
-
-class SessionStatus(BaseModel):
-    status: str
-    message: str
-    progress: Optional[float] = None
-    current_job: Optional[str] = None
-
 class ApplicationDetail(BaseModel):
     job_title: str
     company: str
     status: str
     timestamp: datetime
     search_term: str
-    contract_type: str
-    remote_type: str
+    contract_type: List[str]
+    remote_type: List[str]
     reason: Optional[str] = None
 
 class SessionStatistics(BaseModel):
@@ -88,6 +74,21 @@ class SessionStatistics(BaseModel):
     successful: int
     failed: int
     success_rate: float
+    per_search_term: Optional[List[dict]] = None
+
+class Statistics(BaseModel):
+    total_applications: int
+    successful_applications: int
+    failed_applications: int
+    success_rate: float
+    last_session: Optional[str]
+    sessions: List[SessionStatistics]
+
+class SessionStatus(BaseModel):
+    status: str
+    message: str
+    progress: Optional[float] = None
+    current_job: Optional[str] = None
 
 class GlobalStatistics(BaseModel):
     total_applications: int
@@ -95,7 +96,7 @@ class GlobalStatistics(BaseModel):
     failed_applications: int
     success_rate: float
     sessions: List[SessionStatistics]
-    per_search_term: Dict[str, int]
+    per_search_term: List[dict]
     per_contract_type: Dict[str, int]
     per_remote_type: Dict[str, int]
     per_day: Dict[str, int]
@@ -118,6 +119,17 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
         )
+
+# Utility function to ensure a value is always a list of strings
+def ensure_list(val):
+    if isinstance(val, list):
+        return [str(v) for v in val]
+    if val is None:
+        return []
+    if isinstance(val, str):
+        # Split comma-separated strings, strip whitespace
+        return [v.strip() for v in val.split(',') if v.strip()]
+    return [str(val)]
 
 # API Routes
 @app.get("/")
@@ -256,7 +268,7 @@ async def get_advanced_statistics(current_user: str = Depends(get_current_user))
                 failed_applications=0,
                 success_rate=0.0,
                 sessions=[],
-                per_search_term={},
+                per_search_term=[],  # Return as list
                 per_contract_type={},
                 per_remote_type={},
                 per_day={}
@@ -270,7 +282,7 @@ async def get_advanced_statistics(current_user: str = Depends(get_current_user))
         
         # Process sessions data
         sessions = []
-        per_search_term = {}
+        per_search_term_dict = {}
         per_contract_type = {}
         per_remote_type = {}
         per_day = {}
@@ -295,21 +307,39 @@ async def get_advanced_statistics(current_user: str = Depends(get_current_user))
                     status=app_data.get('status', 'unknown'),
                     timestamp=datetime.fromisoformat(app_data.get('timestamp', datetime.now().isoformat())),
                     search_term=app_data.get('search_term', 'unknown'),
-                    contract_type=', '.join(app_data.get('contract_type', [])),
-                    remote_type=', '.join(app_data.get('remote_type', []))
+                    contract_type=ensure_list(app_data.get('contract_type', [])),
+                    remote_type=ensure_list(app_data.get('remote_type', [])),
+                    reason=app_data.get('reason')
                 )
                 session_stats.applications.append(app_detail)
                 
-                # Aggregate statistics
+                # Aggregate statistics by search term
                 search_term = app_data.get('search_term', 'unknown')
-                per_search_term[search_term] = per_search_term.get(search_term, 0) + 1
+                if search_term not in per_search_term_dict:
+                    per_search_term_dict[search_term] = {
+                        'search_term': search_term,
+                        'jobs_found': 0,
+                        'jobs_submitted': 0,
+                        'jobs_already_applied': 0,
+                        'jobs_excluded': 0,
+                        'jobs_failed': 0
+                    }
+                per_search_term_dict[search_term]['jobs_found'] += 1
+                if app_data.get('status') == 'submitted':
+                    per_search_term_dict[search_term]['jobs_submitted'] += 1
+                elif app_data.get('status') == 'already_applied':
+                    per_search_term_dict[search_term]['jobs_already_applied'] += 1
+                elif app_data.get('status') == 'excluded':
+                    per_search_term_dict[search_term]['jobs_excluded'] += 1
+                elif app_data.get('status') == 'failed':
+                    per_search_term_dict[search_term]['jobs_failed'] += 1
                 
                 # Aggregate by contract type
-                for contract_type in app_data.get('contract_type', []):
+                for contract_type in ensure_list(app_data.get('contract_type', [])):
                     per_contract_type[contract_type] = per_contract_type.get(contract_type, 0) + 1
                 
                 # Aggregate by remote type
-                for remote_type in app_data.get('remote_type', []):
+                for remote_type in ensure_list(app_data.get('remote_type', [])):
                     per_remote_type[remote_type] = per_remote_type.get(remote_type, 0) + 1
                 
                 # Aggregate by day
@@ -317,6 +347,9 @@ async def get_advanced_statistics(current_user: str = Depends(get_current_user))
                 per_day[app_date] = per_day.get(app_date, 0) + 1
             
             sessions.append(session_stats)
+        
+        # Convert per_search_term_dict to a list for frontend compatibility
+        per_search_term = list(per_search_term_dict.values())
         
         return GlobalStatistics(
             total_applications=stats['total_applications'],

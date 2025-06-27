@@ -66,16 +66,26 @@ export interface SessionStatistics {
   total_attempted_applications?: number;
 }
 
+export interface PerSearchTermStats {
+  search_term: string;
+  jobs_found: number;
+  jobs_submitted: number;
+  jobs_already_applied: number;
+  jobs_excluded: number;
+  jobs_failed: number;
+}
+
 export interface GlobalStatistics {
   total_applications: number;
   successful_applications: number;
   failed_applications: number;
   success_rate: number;
   sessions: SessionStatistics[];
-  per_search_term: { [key: string]: number };
+  per_search_term: PerSearchTermStats[];
   per_contract_type: { [key: string]: number };
   per_remote_type: { [key: string]: number };
   per_day: { [key: string]: number };
+  last_session?: string;
 }
 
 @Injectable({

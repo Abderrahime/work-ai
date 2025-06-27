@@ -146,5 +146,32 @@
         </div>
       </div>
     </div>
+
+    <!-- Per Search Term Stats Table -->
+    <div class="per-search-term-section" *ngIf="stats?.per_search_term?.length">
+      <h3>📋 Statistiques par terme de recherche</h3>
+      <table class="per-search-term-table">
+        <thead>
+          <tr>
+            <th>Terme</th>
+            <th>Jobs trouvés</th>
+            <th>CV envoyés</th>
+            <th>Déjà postulé</th>
+            <th>Exclu (mot-clé)</th>
+            <th>Échec</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let term of stats.per_search_term">
+            <td>{{ term.search_term }}</td>
+            <td>{{ term.jobs_found }}</td>
+            <td>{{ term.jobs_submitted }}</td>
+            <td>{{ term.jobs_already_applied }}</td>
+            <td>{{ term.jobs_excluded }}</td>
+            <td>{{ term.jobs_failed }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </ng-container>
 </div> 
