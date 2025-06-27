@@ -1,6 +1,6 @@
 [build]
   base    = "frontend"
-  publish = "dist/freework-frontend"
+  publish = "dist/freework-frontend/browser"
   command = "npm run build"
 
 [[redirects]]
