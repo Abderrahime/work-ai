@@ -150,57 +150,6 @@ h2 {
   flex-wrap: wrap;
 }
 
-.btn-primary,
-.btn-success,
-.btn-info {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  min-width: 180px;
-}
-
-.btn-primary {
-  background: #3498db;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #2980b9;
-  transform: translateY(-2px);
-}
-
-.btn-success {
-  background: #27ae60;
-  color: white;
-}
-
-.btn-success:hover:not(:disabled) {
-  background: #229954;
-  transform: translateY(-2px);
-}
-
-.btn-info {
-  background: #9b59b6;
-  color: white;
-}
-
-.btn-info:hover:not(:disabled) {
-  background: #8e44ad;
-  transform: translateY(-2px);
-}
-
-.btn-primary:disabled,
-.btn-success:disabled,
-.btn-info:disabled {
-  background: #bdc3c7;
-  cursor: not-allowed;
-  transform: none;
-}
-
 .status {
   margin-top: 20px;
   text-align: center;
