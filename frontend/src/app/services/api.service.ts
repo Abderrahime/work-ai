@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError, BehaviorSubject } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 export interface Credentials {
   email: string;
@@ -92,7 +93,7 @@ export interface GlobalStatistics {
   providedIn: 'root'
 })
 export class ApiService {
-  private apiUrl = 'http://localhost:8000';
+  private apiUrl = environment.apiUrl;
   private authToken: string | null = null;
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
   public isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
