@@ -1,1 +1,9 @@
-uvicorn 
+fastapi
+uvicorn
+pydantic
+python-multipart
+python-jose[cryptography]
+passlib[bcrypt]
+python-dotenv
+selenium
+requests 
