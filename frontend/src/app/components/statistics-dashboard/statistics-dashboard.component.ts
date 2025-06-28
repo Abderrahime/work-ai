@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ApiService, GlobalStatistics as ApiGlobalStatistics } from '../../services/api.service';
 
@@ -19,6 +19,8 @@ interface GlobalStatistics extends ApiGlobalStatistics {
   styleUrls: ['./statistics-dashboard.component.css']
 })
 export class StatisticsDashboardComponent implements OnInit {
+  @Input() email: string = '';
+  @Input() password: string = '';
   stats: GlobalStatistics | null = null;
   loading = true;
   error = '';
@@ -26,16 +28,21 @@ export class StatisticsDashboardComponent implements OnInit {
   constructor(private api: ApiService) {}
 
   ngOnInit(): void {
-    this.api.getAdvancedStatistics().subscribe({
-      next: (stats) => {
-        this.stats = stats;
-        this.loading = false;
-      },
-      error: (err) => {
-        this.error = err.message || 'Failed to load statistics';
-        this.loading = false;
-      }
-    });
+    if (this.email && this.password) {
+      this.api.getAdvancedStatistics(this.email, this.password).subscribe({
+        next: (stats) => {
+          this.stats = stats;
+          this.loading = false;
+        },
+        error: (err) => {
+          this.error = err.message || 'Failed to load statistics';
+          this.loading = false;
+        }
+      });
+    } else {
+      this.loading = false;
+      this.error = 'Email and password are required to load statistics.';
+    }
   }
 
   // Helper methods for template

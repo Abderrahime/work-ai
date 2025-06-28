@@ -2,7 +2,7 @@
   <h2>FreeWork Job Application Configuration</h2>
   
   <!-- Authentication Status -->
-  <div class="auth-status" *ngIf="isAuthenticated">
+  <div class="auth-status" *ngIf="configForm.get('email')?.valid && configForm.get('password')?.valid">
     <p class="success">🔐 Authenticated as: {{configForm.get('email')?.value}}</p>
   </div>
   
@@ -138,15 +138,15 @@
     <!-- Action Buttons -->
     <div class="actions">
       <button type="submit" class="btn-primary" [disabled]="configForm.invalid">
-        {{isAuthenticated ? '💾 Save Configuration' : '🔐 Login & Save Configuration'}}
+        💾 Save Configuration
       </button>
-      <button type="button" class="btn-success" (click)="startSession()" [disabled]="configForm.invalid || !isAuthenticated">
+      <button type="button" class="btn-success" (click)="startSession()" [disabled]="configForm.invalid">
         🚀 Launch Application Session
       </button>
-      <button type="button" class="btn-info" (click)="viewStatistics()" [disabled]="!isAuthenticated">
+      <button type="button" class="btn-info" (click)="viewStatistics()" [disabled]="configForm.invalid">
         📊 {{showStatistics ? 'Hide' : 'View'}} Quick Statistics
       </button>
-      <button type="button" class="btn-secondary" (click)="scrollToStatistics()" [disabled]="!isAuthenticated">
+      <button type="button" class="btn-secondary" (click)="scrollToStatistics()" [disabled]="configForm.invalid">
         📈 Go to Full Dashboard
       </button>
     </div>

@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, FormArray, ReactiveFormsModule } from '@angular/forms';
-import { ApiService, SearchConfig, Statistics, Credentials } from '../../services/api.service';
+import { ApiService, SearchConfig, Statistics } from '../../services/api.service';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -13,7 +13,6 @@ import { CommonModule } from '@angular/common';
 export class ConfigurationComponent implements OnInit {
   configForm: FormGroup;
   saveStatus = '';
-  isAuthenticated = false;
   showStatistics = false;
   currentStats: Statistics | null = null;
 
@@ -54,57 +53,38 @@ export class ConfigurationComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.api.isAuthenticated$.subscribe(authenticated => {
-      this.isAuthenticated = authenticated;
-      if (authenticated) {
-        this.loadConfiguration();
-      }
-    });
-    
+    // Load config if email and password are present and valid
+    this.configForm.get('email')?.valueChanges.subscribe(() => this.tryLoadConfig());
+    this.configForm.get('password')?.valueChanges.subscribe(() => this.tryLoadConfig());
+    this.tryLoadConfig();
     this.configForm.valueChanges.subscribe(() => {
-      if (this.configForm.valid && this.isAuthenticated) {
+      if (this.configForm.valid) {
         this.saveConfig();
       }
     });
   }
 
-  private loadConfiguration(): void {
-    this.api.getConfig().subscribe({
-      next: (config: SearchConfig) => {
-        console.log('API /config response:', config);
-        let publication_timeframes = config.publication_timeframes;
-        if (Array.isArray(publication_timeframes)) {
-          publication_timeframes = publication_timeframes[0] || 'less_than_30_days';
+  private tryLoadConfig(): void {
+    const email = this.configForm.get('email')?.value;
+    const password = this.configForm.get('password')?.value;
+    if (email && password && this.configForm.get('email')?.valid && this.configForm.get('password')?.valid) {
+      this.api.getConfig(email, password).subscribe({
+        next: (config: SearchConfig) => {
+          let publication_timeframes = config.publication_timeframes;
+          if (Array.isArray(publication_timeframes)) {
+            publication_timeframes = publication_timeframes[0] || 'less_than_30_days';
+          }
+          const formValue = {
+            ...config,
+            publication_timeframes
+          };
+          this.configForm.patchValue(formValue);
+        },
+        error: (error: any) => {
+          // No saved configuration found, using defaults
         }
-        const formValue = {
-          ...config,
-          publication_timeframes
-        };
-        console.log('Patched form value:', formValue);
-        this.configForm.patchValue(formValue);
-      },
-      error: (error: any) => {
-        console.log('No saved configuration found, using defaults');
-      }
-    });
-  }
-
-  private loginAndSave(): void {
-    const credentials: Credentials = {
-      email: this.configForm.get('email')?.value,
-      password: this.configForm.get('password')?.value
-    };
-
-    this.api.login(credentials).subscribe({
-      next: () => {
-        this.isAuthenticated = true;
-        this.saveConfig();
-      },
-      error: (error: any) => {
-        this.saveStatus = '❌ Login failed: ' + error.message;
-        setTimeout(() => this.saveStatus = '', 5000);
-      }
-    });
+      });
+    }
   }
 
   getSearchTermsArray(): FormArray {
@@ -116,13 +96,8 @@ export class ConfigurationComponent implements OnInit {
   }
 
   saveConfig() {
-    if (!this.isAuthenticated) {
-      this.loginAndSave();
-      return;
-    }
-
+    if (this.configForm.invalid) return;
     const formValue = this.configForm.value;
-    console.log('Saving config, publication_timeframes:', formValue.publication_timeframes);
     const config: SearchConfig = {
       search_terms: formValue.search_terms.filter((term: string) => term.trim()),
       contract_types: formValue.contract_types,
@@ -133,8 +108,9 @@ export class ConfigurationComponent implements OnInit {
       max_applications_per_session: formValue.max_applications_per_session,
       delay_between_applications: formValue.delay_between_applications
     };
-
-    this.api.saveConfig(config).subscribe({
+    const email = formValue.email;
+    const password = formValue.password;
+    this.api.saveConfig(config, email, password).subscribe({
       next: () => {
         this.saveStatus = 'Configuration saved!';
         setTimeout(() => this.saveStatus = '', 2000);
@@ -200,19 +176,13 @@ export class ConfigurationComponent implements OnInit {
       setTimeout(() => this.saveStatus = '', 3000);
       return;
     }
-
-    if (!this.isAuthenticated) {
-      this.saveStatus = '🔐 Please save configuration first to authenticate';
-      setTimeout(() => this.saveStatus = '', 3000);
-      return;
-    }
-
     this.saveStatus = '🚀 Starting application session...';
-    this.api.startSession().subscribe({
+    const email = this.configForm.get('email')?.value;
+    const password = this.configForm.get('password')?.value;
+    this.api.startSession(email, password).subscribe({
       next: () => {
         this.saveStatus = '✅ Application session started successfully!';
         setTimeout(() => this.saveStatus = '', 3000);
-        // Refresh statistics after session
         this.viewStatistics();
       },
       error: (error: any) => {
@@ -223,16 +193,16 @@ export class ConfigurationComponent implements OnInit {
   }
 
   viewStatistics() {
-    if (!this.isAuthenticated) {
-      this.saveStatus = '🔐 Please save configuration first to authenticate';
+    if (this.configForm.invalid) {
+      this.saveStatus = '❌ Please fix form errors before viewing statistics';
       setTimeout(() => this.saveStatus = '', 3000);
       return;
     }
-
     this.showStatistics = !this.showStatistics;
-    
     if (this.showStatistics) {
-      this.api.getStatistics().subscribe({
+      const email = this.configForm.get('email')?.value;
+      const password = this.configForm.get('password')?.value;
+      this.api.getStatistics(email, password).subscribe({
         next: (stats: Statistics) => {
           this.currentStats = stats;
           this.saveStatus = `📊 Statistics loaded: ${stats.total_applications} total applications, ${stats.successful_applications} successful (${stats.success_rate.toFixed(1)}% success rate)`;
