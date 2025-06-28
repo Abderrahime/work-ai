@@ -67,7 +67,12 @@ export class ConfigurationComponent implements OnInit {
   private tryLoadConfig(): void {
     const email = this.configForm.get('email')?.value;
     const password = this.configForm.get('password')?.value;
-    if (email && password && this.configForm.get('email')?.valid && this.configForm.get('password')?.valid) {
+    if (
+      email &&
+      password &&
+      this.configForm.get('email')?.valid &&
+      this.configForm.get('password')?.valid
+    ) {
       this.api.getConfig(email, password).subscribe({
         next: (config: SearchConfig) => {
           let publication_timeframes = config.publication_timeframes;
@@ -202,17 +207,24 @@ export class ConfigurationComponent implements OnInit {
     if (this.showStatistics) {
       const email = this.configForm.get('email')?.value;
       const password = this.configForm.get('password')?.value;
-      this.api.getStatistics(email, password).subscribe({
-        next: (stats: Statistics) => {
-          this.currentStats = stats;
-          this.saveStatus = `📊 Statistics loaded: ${stats.total_applications} total applications, ${stats.successful_applications} successful (${stats.success_rate.toFixed(1)}% success rate)`;
-          setTimeout(() => this.saveStatus = '', 5000);
-        },
-        error: (error: any) => {
-          this.saveStatus = '❌ Failed to load statistics: ' + error.message;
-          setTimeout(() => this.saveStatus = '', 5000);
-        }
-      });
+      if (
+        email &&
+        password &&
+        this.configForm.get('email')?.valid &&
+        this.configForm.get('password')?.valid
+      ) {
+        this.api.getStatistics(email, password).subscribe({
+          next: (stats: Statistics) => {
+            this.currentStats = stats;
+            this.saveStatus = `📊 Statistics loaded: ${stats.total_applications} total applications, ${stats.successful_applications} successful (${stats.success_rate.toFixed(1)}% success rate)`;
+            setTimeout(() => this.saveStatus = '', 5000);
+          },
+          error: (error: any) => {
+            this.saveStatus = '❌ Failed to load statistics: ' + error.message;
+            setTimeout(() => this.saveStatus = '', 5000);
+          }
+        });
+      }
     }
   }
 

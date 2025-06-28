@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict
@@ -107,13 +107,19 @@ async def start_session(credentials: Credentials):
     return {"message": "Session started (stateless mode)"}
 
 @app.get("/config")
-async def get_configuration(email: str, password: str):
+async def get_configuration(
+    email: str = Query(..., min_length=1),
+    password: str = Query(..., min_length=1)
+):
     # Use email and password directly
     # ...
     return {"message": "Config fetched (stateless mode)"}
 
 @app.get("/statistics")
-async def get_statistics(email: str, password: str):
+async def get_statistics(
+    email: str = Query(..., min_length=1),
+    password: str = Query(..., min_length=1)
+):
     """Get user statistics"""
     try:
         # Load user statistics
@@ -163,7 +169,10 @@ async def save_configuration(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/statistics/advanced")
-async def get_advanced_statistics(email: str, password: str):
+async def get_advanced_statistics(
+    email: str = Query(..., min_length=1),
+    password: str = Query(..., min_length=1)
+):
     """Get enhanced user statistics"""
     try:
         # Load user statistics

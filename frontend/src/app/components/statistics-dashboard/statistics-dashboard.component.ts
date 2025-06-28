@@ -41,7 +41,7 @@ export class StatisticsDashboardComponent implements OnInit {
       });
     } else {
       this.loading = false;
-      this.error = 'Email and password are required to load statistics.';
+      this.error = 'Please enter your email and password to view statistics.';
     }
   }
 
