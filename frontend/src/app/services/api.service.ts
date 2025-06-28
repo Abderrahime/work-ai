@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
-import { Observable, throwError, BehaviorSubject } from 'rxjs';
-import { catchError, tap } from 'rxjs/operators';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export interface Credentials {
@@ -94,141 +94,64 @@ export interface GlobalStatistics {
 })
 export class ApiService {
   private apiUrl = environment.apiUrl;
-  private authToken: string | null = null;
-  private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
-  public isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
 
-  constructor(private http: HttpClient) {
-    this.loadAuthToken();
-    this.checkAuthStatus();
-  }
-
-  private loadAuthToken(): void {
-    if (typeof window !== 'undefined') {
-      this.authToken = localStorage.getItem('authToken');
-      if (this.authToken) {
-        this.isAuthenticatedSubject.next(true);
-      }
-    }
-  }
+  constructor(private http: HttpClient) {}
 
   private getHeaders(): HttpHeaders {
-    let headers = new HttpHeaders({
+    return new HttpHeaders({
       'Content-Type': 'application/json'
     });
-    
-    if (this.authToken) {
-      headers = headers.set('Authorization', `Bearer ${this.authToken}`);
-    }
-    
-    return headers;
   }
 
   private handleError(error: HttpErrorResponse) {
     let errorMessage = 'An error occurred';
-    
-    // Check if we're in a browser environment before using ErrorEvent
     if (typeof window !== 'undefined' && error.error instanceof ErrorEvent) {
-      // Client-side error
       errorMessage = error.error.message;
     } else {
-      // Server-side error
       errorMessage = error.error?.detail || error.message || 'Server error';
     }
-    
     console.error('API Error:', errorMessage);
     return throwError(() => new Error(errorMessage));
   }
 
-  // Authentication
-  login(credentials: Credentials): Observable<any> {
-    return this.http.post(`${this.apiUrl}/auth/login`, credentials)
-      .pipe(
-        tap((response: any) => {
-          this.authToken = credentials.email; // Use email as token for now
-          this.isAuthenticatedSubject.next(true);
-          if (typeof window !== 'undefined' && this.authToken) {
-            localStorage.setItem('authToken', this.authToken);
-          }
-        }),
-        catchError(this.handleError)
-      );
+  // Stateless: pass credentials with each request
+  getConfig(email: string, password: string): Observable<SearchConfig> {
+    return this.http.get<SearchConfig>(`${this.apiUrl}/config`, {
+      headers: this.getHeaders(),
+      params: { email, password }
+    }).pipe(catchError(this.handleError));
   }
 
-  logout(): void {
-    this.authToken = null;
-    this.isAuthenticatedSubject.next(false);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('authToken');
-    }
-  }
-
-  checkAuthStatus(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/auth/status`, { headers: this.getHeaders() })
-      .pipe(
-        tap((response: any) => {
-          if (response.authenticated) {
-            this.authToken = response.email;
-            this.isAuthenticatedSubject.next(true);
-            if (typeof window !== 'undefined' && this.authToken) {
-              localStorage.setItem('authToken', this.authToken);
-            }
-          } else {
-            // Not authenticated, clear token
-            this.logout();
-          }
-        }),
-        catchError((error) => {
-          // On error, also clear token
-          this.logout();
-          return this.handleError(error);
-        })
-      );
-  }
-
-  // Configuration
-  getConfig(): Observable<SearchConfig> {
-    return this.http.get<SearchConfig>(`${this.apiUrl}/config`, { headers: this.getHeaders() })
+  saveConfig(config: SearchConfig, email: string, password: string): Observable<any> {
+    // Send credentials as additional fields in the body
+    const body = { ...config, email, password };
+    return this.http.post(`${this.apiUrl}/config`, body, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 
-  saveConfig(config: SearchConfig): Observable<any> {
-    return this.http.post(`${this.apiUrl}/config`, config, { headers: this.getHeaders() })
+  getStatistics(email: string, password: string): Observable<Statistics> {
+    return this.http.get<Statistics>(`${this.apiUrl}/statistics`, {
+      headers: this.getHeaders(),
+      params: { email, password }
+    }).pipe(catchError(this.handleError));
+  }
+
+  getAdvancedStatistics(email: string, password: string): Observable<GlobalStatistics> {
+    return this.http.get<GlobalStatistics>(`${this.apiUrl}/statistics/advanced`, {
+      headers: this.getHeaders(),
+      params: { email, password }
+    }).pipe(catchError(this.handleError));
+  }
+
+  startSession(email: string, password: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/session/start`, { email, password }, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 
-  // Statistics
-  getStatistics(): Observable<Statistics> {
-    return this.http.get<Statistics>(`${this.apiUrl}/statistics`, { headers: this.getHeaders() })
-      .pipe(catchError(this.handleError));
-  }
-
-  // Auto-save functionality
-  private autoSaveTimeout: any;
-  
-  triggerAutoSave(config: SearchConfig): void {
-    // Clear existing timeout
-    if (this.autoSaveTimeout) {
-      clearTimeout(this.autoSaveTimeout);
-    }
-    
-    // Set new timeout (2 seconds delay)
-    this.autoSaveTimeout = setTimeout(() => {
-      this.saveConfig(config).subscribe({
-        next: () => console.log('Configuration auto-saved'),
-        error: (error) => console.error('Auto-save failed:', error)
-      });
-    }, 2000);
-  }
-
-  getAdvancedStatistics(): Observable<GlobalStatistics> {
-    return this.http.get<GlobalStatistics>(`${this.apiUrl}/statistics/advanced`, { headers: this.getHeaders() })
-      .pipe(catchError(this.handleError));
-  }
-
-  // Session management
-  startSession(): Observable<any> {
-    return this.http.post(`${this.apiUrl}/session/start`, {}, { headers: this.getHeaders() })
-      .pipe(catchError(this.handleError));
+  clearData(email: string, password: string): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/data`, {
+      headers: this.getHeaders(),
+      params: { email, password }
+    }).pipe(catchError(this.handleError));
   }
 } 

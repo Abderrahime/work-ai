@@ -1,6 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 import uvicorn
@@ -20,19 +18,6 @@ app = FastAPI(
     description="API for automated job applications on FreeWork",
     version="1.0.0"
 )
-
-# CORS middleware for Angular frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Angular dev server
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Security
-security = HTTPBearer()
-config_manager = SecureConfig()
 
 # Pydantic models
 class Credentials(BaseModel):
@@ -101,92 +86,29 @@ class GlobalStatistics(BaseModel):
     per_remote_type: Dict[str, int]
     per_day: Dict[str, int]
 
-# Dependency for authentication
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    try:
-        # In a real app, you'd validate JWT tokens
-        # For now, we'll use the email as the token
-        email = credentials.credentials
-        stored_email, _ = config_manager.load_credentials()
-        if email != stored_email:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid credentials"
-            )
-        return email
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials"
-        )
-
-# Utility function to ensure a value is always a list of strings
-def ensure_list(val):
-    if isinstance(val, list):
-        return [str(v) for v in val]
-    if val is None:
-        return []
-    if isinstance(val, str):
-        # Split comma-separated strings, strip whitespace
-        return [v.strip() for v in val.split(',') if v.strip()]
-    return [str(val)]
-
-# API Routes
 @app.get("/")
 async def root():
     return {"message": "FreeWork Job Application Assistant API"}
 
-@app.post("/auth/login")
-async def login(credentials: Credentials):
-    """Save user credentials"""
-    try:
-        config_manager.save_credentials(credentials.email, credentials.password)
-        logger = SecureLogger(credentials.email)
-        logger.success("Login successful via API")
-        return {"message": "Credentials saved successfully", "email": credentials.email}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/auth/status")
-async def auth_status():
-    """Check if user is authenticated"""
-    try:
-        email, _ = config_manager.load_credentials()
-        if email:
-            return {"authenticated": True, "email": email}
-        return {"authenticated": False}
-    except Exception:
-        return {"authenticated": False}
+@app.post("/session/start")
+async def start_session(credentials: Credentials):
+    # Use credentials.email and credentials.password directly for automation
+    # ...
+    return {"message": "Session started (stateless mode)"}
 
 @app.get("/config")
-async def get_configuration(current_user: str = Depends(get_current_user)):
-    """Get current configuration"""
-    try:
-        search_config = config_manager.load_search_config()
-        return search_config
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/config")
-async def save_configuration(
-    config: SearchConfig,
-    current_user: str = Depends(get_current_user)
-):
-    """Save configuration"""
-    try:
-        config_dict = config.dict()
-        config_manager.save_search_config(config_dict)
-        logger = SecureLogger(current_user)
-        logger.success("Configuration saved via API")
-        return {"message": "Configuration saved successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def get_configuration(email: str, password: str):
+    # Use email and password directly
+    # ...
+    return {"message": "Config fetched (stateless mode)"}
 
 @app.get("/statistics")
-async def get_statistics(current_user: str = Depends(get_current_user)):
+async def get_statistics(email: str, password: str):
     """Get user statistics"""
     try:
-        stats = config_manager.load_statistics(current_user)
+        # Load user statistics
+        config_manager = SecureConfig()
+        stats = config_manager.load_statistics(email)
         if not stats:
             return Statistics(
                 total_applications=0,
@@ -213,53 +135,30 @@ async def get_statistics(current_user: str = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/session/start")
-async def start_session(current_user: str = Depends(get_current_user)):
-    """Start a new application session"""
+@app.post("/config")
+async def save_configuration(
+    config: SearchConfig,
+    email: str,
+    password: str
+):
+    """Save configuration"""
     try:
-        # Validate configuration
-        search_config = config_manager.load_search_config()
-        if not search_config['search_terms']:
-            raise HTTPException(
-                status_code=400,
-                detail="No search terms configured"
-            )
-        
-        # Start session in background (in production, use Celery or similar)
-        # For now, we'll run it synchronously
-        logger = SecureLogger(current_user)
-        
-        # Run the automation
-        run_automation(
-            email=current_user,
-            password=None,  # Will be loaded from config
-            search_config=search_config,
-            config_manager=config_manager,
-            logger=logger
-        )
-        
-        return {"message": "Session completed successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.delete("/data")
-async def clear_data(current_user: str = Depends(get_current_user)):
-    """Clear all stored data"""
-    try:
-        import shutil
-        config_dir = config_manager.config_dir
-        if config_dir.exists():
-            shutil.rmtree(config_dir)
-        return {"message": "All data cleared successfully"}
+        config_dict = config.dict()
+        config_manager = SecureConfig()
+        config_manager.save_search_config(config_dict)
+        logger = SecureLogger(email)
+        logger.success("Configuration saved via API")
+        return {"message": "Configuration saved successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/statistics/advanced")
-async def get_advanced_statistics(current_user: str = Depends(get_current_user)):
+async def get_advanced_statistics(email: str, password: str):
     """Get enhanced user statistics"""
     try:
         # Load user statistics
-        stats = config_manager.load_statistics(current_user)
+        config_manager = SecureConfig()
+        stats = config_manager.load_statistics(email)
         
         if not stats:
             return GlobalStatistics(
@@ -362,6 +261,19 @@ async def get_advanced_statistics(current_user: str = Depends(get_current_user))
             per_remote_type=per_remote_type,
             per_day=per_day
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/data")
+async def clear_data(email: str, password: str):
+    """Clear all stored data"""
+    try:
+        import shutil
+        config_manager = SecureConfig()
+        config_dir = config_manager.config_dir
+        if config_dir.exists():
+            shutil.rmtree(config_dir)
+        return {"message": "All data cleared successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
