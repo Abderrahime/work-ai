@@ -22,11 +22,16 @@ COPY api/requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-# Étape 5 : Copier le reste du code
+# Étape 5 : Copier les fichiers nécessaires du répertoire racine
+COPY config.py .
+COPY logger.py .
+COPY main.py .
+
+# Étape 6 : Copier le reste du code API
 COPY api/ ./api/
 
-# Étape 6 : Exposer le port
+# Étape 7 : Exposer le port
 EXPOSE 10000
 
-# Étape 7 : Démarrer l'app
+# Étape 8 : Démarrer l'app
 CMD ["uvicorn", "api.api_main:app", "--host", "0.0.0.0", "--port", "10000"]
