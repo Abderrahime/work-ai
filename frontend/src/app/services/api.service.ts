@@ -164,7 +164,7 @@ export class ApiService {
   }
 
   checkAuthStatus(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/auth/status`)
+    return this.http.get(`${this.apiUrl}/auth/status`, { headers: this.getHeaders() })
       .pipe(
         tap((response: any) => {
           if (response.authenticated) {
@@ -173,9 +173,16 @@ export class ApiService {
             if (typeof window !== 'undefined' && this.authToken) {
               localStorage.setItem('authToken', this.authToken);
             }
+          } else {
+            // Not authenticated, clear token
+            this.logout();
           }
         }),
-        catchError(this.handleError)
+        catchError((error) => {
+          // On error, also clear token
+          this.logout();
+          return this.handleError(error);
+        })
       );
   }
 
