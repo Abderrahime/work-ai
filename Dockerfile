@@ -4,14 +4,26 @@ FROM python:3.11-slim
 # Étape 2 : Créer le dossier app
 WORKDIR /app
 
+# Install system dependencies, Firefox, and required libraries
+RUN apt-get update && \
+    apt-get install -y wget gnupg2 curl build-essential firefox-esr && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install geckodriver (Firefox driver for Selenium)
+ENV GECKODRIVER_VERSION=0.34.0
+RUN wget --no-verbose -O /tmp/geckodriver.tar.gz "https://github.com/mozilla/geckodriver/releases/download/v$GECKODRIVER_VERSION/geckodriver-v$GECKODRIVER_VERSION-linux64.tar.gz" && \
+    tar -C /usr/local/bin -xzf /tmp/geckodriver.tar.gz && \
+    rm /tmp/geckodriver.tar.gz
+
 # Étape 3 : Copier requirements.txt AVANT tout le reste
-COPY requirements.txt .
+COPY api/requirements.txt .
 
 # Étape 4 : Installer les dépendances
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
 
 # Étape 5 : Copier le reste du code
-COPY . .
+COPY api/ ./api/
 
 # Étape 6 : Exposer le port
 EXPOSE 10000
